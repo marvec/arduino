@@ -1,0 +1,5 @@
+Weather station reading temperature and humidity from DHT11 sensor, publishing it regularly using MQTT over Wifi.
+
+DHT11 Library - https://github.com/adafruit/DHT-sensor-library
+Adafruit CC3000 Library - https://github.com/adafruit/Adafruit_CC3000_Library
+CC3000 MQTT Library - https://github.com/nathanchantrell/pubsubclient

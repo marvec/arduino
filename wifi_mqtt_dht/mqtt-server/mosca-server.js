@@ -1,7 +1,7 @@
 var mosca = require('mosca')
  
 var settings = {
-  port: 1883,
+  port: 1884,
   host: '192.168.1.105',
   persistence: mosca.persistence.Memory
 };

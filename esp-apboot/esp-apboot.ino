@@ -10,6 +10,10 @@ const char* ssid = "BUBBLES";
 String st;
 
 void setup() {
+  pinMode(2, INPUT);
+  pinMode(0, OUTPUT);
+  digitalWrite(0, 0);
+  
   Serial.begin(115200);
   EEPROM.begin(512);
   delay(10);
@@ -75,6 +79,13 @@ void launchWeb(int webtype) {
           int b = 20;
           int c = 0;
           while(b == 20) { 
+             int val = digitalRead(2);
+             digitalWrite(0, val);
+             
+             if (val == 0) {
+               sendPress();
+             }
+
              b = mdns1(webtype);
            }
 }
@@ -197,13 +208,21 @@ int mdns1(int webtype)
             Serial.print("Wrote: ");
             Serial.println(qsid[i]); 
           }
-        Serial.println("writing eeprom pass:"); 
-        for (int i = 0; i < qpass.length(); ++i)
-          {
-            EEPROM.write(32+i, qpass[i]);
-            Serial.print("Wrote: ");
-            Serial.println(qpass[i]); 
-          }    
+          
+        int buffer_size = qpass.length() + 1;
+        char pass_encoded[buffer_size];
+        char pass_decoded[buffer_size];
+
+        qpass.toCharArray(pass_encoded,buffer_size);
+        int decoded_size = urldecode(pass_decoded,pass_encoded);
+
+        Serial.println("writing eeprom pass:");
+        for (int i = 0; i < decoded_size; ++i)
+        {
+          EEPROM.write(32+i, pass_decoded[i]);
+          Serial.print("Wrote: ");
+          Serial.println(pass_decoded[i]);
+        }          
         EEPROM.commit();
         s = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n<html>Hello from ESP8266 ";
         s += "Found ";
@@ -245,9 +264,75 @@ int mdns1(int webtype)
   return(20);
 }
 
+void sendPress() {
+  uint8_t mac[WL_MAC_ADDR_LENGTH];
+  
+  WiFi.softAPmacAddress(mac);
+  
+  WiFiClient client;
+  const char* host = "monitor-qe.rhcloud.com";
+  const int httpPort = 80;
+  if (!client.connect(host, httpPort)) {
+    Serial.println("connection failed");
+    return;
+  }
+  
+  // We now create a URI for the request
+  String url = "/button/press/";
+  for (int i = 0; i < WL_MAC_ADDR_LENGTH; i++) {
+    url += char('a' + (mac[i] & 0b1111));
+    url += char('k' + (mac[i] >> 4));
+    Serial.print(mac[i]);
+    Serial.print(":");
+  }
+  Serial.println();
+  
+  Serial.print("Requesting URL: ");
+  Serial.println(url);
+  
+  // This will send the request to the server
+  client.print(String("GET ") + url + " HTTP/1.1\r\n" +
+               "Host: " + host + "\r\n" + 
+               "Connection: close\r\n\r\n");
+  delay(10);
+  
+  // Read all the lines of the reply from server and print them to Serial
+  while(client.available()){
+    String line = client.readStringUntil('\r');
+    Serial.print(line);
+  }
+}
 
+int urldecode(char *dst, const char *src) {
+  char a, b;
+  int new_size = 0;
+  while (*src) {
+    if ((*src == '%') &&
+      ((a = src[1]) && (b = src[2])) &&
+      (isxdigit(a) && isxdigit(b))) {
+      if (a >= 'a')
+        a -= 'a'-'A';
+      if (a >= 'A')
+        a -= ('A' - 10);
+      else
+        a -= '0';
+      if (b >= 'a')
+        b -= 'a'-'A';
+      if (b >= 'A')
+        b -= ('A' - 10);
+      else
+        b -= '0';
+      *dst++ = 16*a+b;
+      src+=3;
+    }
+    else {
+      *dst++ = *src++;
+    }
+    new_size += 1;
+  }
+  *dst++ = '\0';
+  return new_size;
+}
 
 void loop() {
-  // put your main code here, to run repeatedly:
-
 }
